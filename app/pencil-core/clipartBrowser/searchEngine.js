@@ -7,6 +7,6 @@ function SearchEngine() {
     this.uri = null;
 }
 
-SearchEngine.prototype.search = function(query, options, callback) {
-    return this.searchImpl(query, options, callback);
+SearchEngine.prototype.search = function(query, options, onComplete, onError) {
+    return this.searchImpl(query, options, onComplete, onError);
 }

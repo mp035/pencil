@@ -4,8 +4,7 @@ function OpenClipartSearch() {
     this.name = "OpenClipart.org";
     this.uri = "https://openclipart.org/";
     this.icon = "https://openclipart.org/favicon.ico";
-
-    this.baseUri = "https://openclipart.org/search/json/";
+    this.baseUri = "https://openclipart.org/api/v2@beta/search";
     this.options = {
         page: 1
     };
@@ -22,21 +21,21 @@ OpenClipartSearch.prototype.merge = function (o, n) {
 };
 
 OpenClipartSearch.prototype.buildSearchUri = function (query, options) {
-    var url = this.baseUri + "?query=" + query;
+    var url = this.baseUri + "?q=" + query;
 
-    if (options.offset != null && options.limit != null) {
-        options.page = (options.offset / options.limit) + 1;
-    }
-
+    var searchOptions = {
+        offset: options.limit * (options.page - 1),
+        per_page: options.limit
+    };
     var param = "";
-    for (var i in options) {
-        param += "&" + i + "=" + options[i];
+    for (var i in searchOptions) {
+        param += "&" + i + "=" + searchOptions[i];
     };
 
     return url + param;
 };
 
-OpenClipartSearch.prototype.searchImpl = function(query, options, callback) {
+OpenClipartSearch.prototype.searchImpl = function(query, options, onComplete, onError) {
     this.options = this.merge(this.options, options);
     var url = this.buildSearchUri(query, this.options);
 
@@ -49,12 +48,17 @@ OpenClipartSearch.prototype.searchImpl = function(query, options, callback) {
     var thiz = this;
 
     console.log(`OpenClipart: searching ${query}`);
-    WebUtil.get(url, function(response) {
+    var token = Config.get("openclipart.search.api_key_token", "");
+    WebUtil.get(url, [{
+                "name": "x-openclipart-apikey",
+                "value" : token,
+            }],
+    function(response) {
         var r = thiz.parseSearchResult(response);
-        if (callback) {
-            callback(r.result, r.resultCount);
+        if (onComplete) {
+            onComplete(r.result, r.resultCount);
         }
-    }, this.req);
+    }, onError, this.req);
 };
 
 OpenClipartSearch.prototype.formatType = function(ty) {
@@ -77,23 +81,24 @@ OpenClipartSearch.prototype.parseSearchResult = function(response) {
         response = JSON.parse(response);
     } catch (ex) {}
 
-    if (!response || response.msg != "success") { return result; }
+    if (!response || response.status != 200 || !response.success || !response.data) {
+        return result;
+    }
+    result.resultCount = response.data.total_results;
+    result.pages = response.data.total_results / response.data.files_count;
 
-    result.resultCount = response.info.results;
-    result.pages = response.info.pages;
-
-    _.forEach(response.payload, function(e) {
+    _.forEach(response.data.files, function(e) {
         var item = {
+            id: e.id,
             name: e.title,
             description: e.description,
-            src: e.svg.url,
+            src: e.svg_file,
             type: 'SVG',
-            size: e.svg_filesize,
-            thumb: e.svg.png_thumb,
-            pubDate: e.created,
-            link: e.detail_link
+            size: e.filesize,
+            thumb: e.thumbnails["small"] || e.thumbnails["medium"] || e.thumbnails["large"] || "",
+            pubDate: e.created_at,
+            link: e.url
         };
-
         result.result.push(item);
     });
 

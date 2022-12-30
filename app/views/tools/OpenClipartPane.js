@@ -1,8 +1,8 @@
 function OpenClipartPane() {
     BaseTemplatedWidget.call(this);
     var thiz = this;
-    this.backend = new OpenClipartSearch2();
-
+    this.backend = new OpenClipartSearch();
+    this.apiTokenTutorial = "https://openclipart.org/api/tutorial";
     function injectSvgInfo (svg) {
         try {
             var g = Dom.parseToNode(svg);
@@ -55,41 +55,63 @@ function OpenClipartPane() {
     }, this.scaleImageCheckbox);
 
     this.scaleImageCheckbox.checked = Config.get("clipartbrowser.scale") == true;
-
-    this.bind("click", function () {
-        this.searchOptions.page -= 1;
-        this.search();
-    }, this.goPrevious);
-
-    this.bind("click", function () {
-        this.searchOptions.page += 1;
-        this.search();
-    }, this.goNext);
-
     this.searchOptions = {
         page: 1,
-        limit: 60
+        limit: 50
     };
     this.rq = [];
 
-    this.goPrevious.disabled = true;
-    this.goNext.disabled = true;
+    this.apiTokenTutorialLink.href = this.apiTokenTutorial;
+    this.invalidateUI();
+    this.bind("click", function (event) {
+        Dialog.prompt("OpenClipart API token:", "", "Save", function(token) {
+            if (!token) return;
+            thiz.loader.style.display = "";
+            Config.set("openclipart.search.api_key_token", token);
+            thiz.searchAborted = true;
+            Dom.empty(thiz.shapeList);
+            thiz.backend.search("", thiz.searchOptions, function (result) {
+                thiz.loader.style.display = "none";
+                NotificationPopup.show("OpenClipart API token added");
+            }, function(e) {
+                thiz.loader.style.display = "none";
+                Dialog.error("OpenClipart API token is invalid. Please try another one.");
+                Config.set("openclipart.search.api_key_token", "");
+            });
+        }, "Cancel");
+    }, this.setupTokenNowButton);
+
+    window.globalEventBus.listen("config-change", function (data) {
+        if (data.name == "openclipart.search.api_key_token") {
+            thiz.invalidateUI();
+        }
+    }.bind(this));
 }
 __extend(BaseTemplatedWidget, OpenClipartPane);
 
 OpenClipartPane.prototype.getTitle = function() {
 	return "Clipart";
 };
-
+OpenClipartPane.prototype.invalidateUI = function() {
+    var token = Config.get("openclipart.search.api_key_token", "");
+    Dom.toggleClass(this.contentPane, "Active", token);
+    Dom.toggleClass(this.tokenSetupBox, "Active", !token);
+}
 OpenClipartPane.prototype.getIconName = function() {
 	return "photo";
 };
 OpenClipartPane.prototype.search = function () {
+    var thiz = this;
+    var token = Config.get("openclipart.search.api_key_token", "");
+    if (!token) {
+        Dialog.error("OpenClipart API token is need setup before searching.", "Visit '" + this.apiTokenTutorial +"' for more details.", function() {
+            window.open(thiz.apiTokenTutorial, "_blank");
+        });
+        return;
+    }
     if (this.node().offsetWidth <= 0) return;
-    Dom.empty(this.shapeList);
 
-    this.goPrevious.disabled = true;
-    this.goNext.disabled = true;
+    Dom.empty(this.shapeList);
 
     for (var i = 0; i < this.rq.length; i++) {
         if (this.rq[i]) {
@@ -158,9 +180,6 @@ OpenClipartPane.prototype.renderResult = function (result) {
         // });
         this.getSVG(node._def);
     }
-
-    this.goPrevious.disabled = (this.searchOptions.page <= 1);
-    this.goNext.disabled = (result.length <= 0);
 };
 
 OpenClipartPane.prototype.getSVG = function (item) {

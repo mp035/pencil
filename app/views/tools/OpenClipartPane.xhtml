@@ -109,11 +109,6 @@
         @navigation > hbox > button + button {
             margin-left: 1em;
         }
-        @goPrevious.Disabled,
-        @goNext.Disabled {
-            color: gray;
-            cursor: default;
-        }
         @loader {
             position: absolute;
             top: 33%;
@@ -127,7 +122,22 @@
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
-
+        @tokenSetupBox:not(.Active) {
+            display: none;
+        }
+        @contentPane:not(.Active) {
+            display: none;
+        }
+        @tokenSetupBox {
+            padding: 1em;
+            align-items: center;
+        }
+        @tokenSetupBox > vbox {
+            margin-right: 1em;
+        }
+        @tokenSetupBox > vbox > p {
+            margin: 0em;
+        }
     </style>
     <hbox anon-id="filter">
         <hbox anon-id="logo">
@@ -137,6 +147,13 @@
             <div anon-id="loader" style="display: none"></div>
         </hbox>
     </hbox>
+    <hbox anon-id="tokenSetupBox">
+            <vbox flex="1">
+                <p>OpenClipart API token is need setup before searching!</p>
+                <a target="_blank" anon-id="apiTokenTutorialLink">Read more...</a>
+            </vbox>
+            <button anon-id="setupTokenNowButton">Setup now...</button>
+    </hbox>
     <vbox flex="1" anon-id="contentPane">
         <vbox flex="1" anon-id="shapeListContainer">
             <ul anon-id="shapeList" class="ShapeList" flex="1">
@@ -145,8 +162,6 @@
         <vbox anon-id="navigation">
             <hbox style="align-items: center;">
                 <input type="checkbox" anon-id="scaleImageCheckbox" value="1" checked="checked" /><label for="scaleImageCheckbox" flex="1">&#160;Scale to fit</label>
-                <button anon-id="goPrevious"><i>chevron_left</i> Previous</button>
-                <button anon-id="goNext">Next <i>chevron_right</i></button>
             </hbox>
         </vbox>
     </vbox>
